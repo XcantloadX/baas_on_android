@@ -279,4 +279,17 @@ if __name__ == '__main__':
         path = os.path.join(pwd, 'window.pyc')
     else:
         raise FileNotFoundError('window.py or window.pyc not found')
-    runpy.run_path(path, run_name='__main__')
+    try:
+        runpy.run_path(path, run_name='__main__')
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f'Error occurred when running {path}: {e}')
+        from jnius import autoclass
+        JRuntimeException = autoclass('java.lang.RuntimeException')
+        JThread = autoclass('java.lang.Thread')
+        j_exception = JRuntimeException(str(e))
+        current_thread = JThread.currentThread()
+        handler = current_thread.getUncaughtExceptionHandler()
+        handler.uncaughtException(current_thread, j_exception)
+        

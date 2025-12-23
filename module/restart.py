@@ -30,7 +30,7 @@ def start(self):
     if self.server == 'CN':
         activity_name = None
     if is_android():
-        self.u2.shell(f"am start --display {self.display_id} -n {self.package_name}/{activity_name}")
+        self.u2.shell(f"am start --display {self.target_display.logical_id} -n {self.package_name}/{activity_name}")
     else:
         self.u2.app_start(self.package_name, activity_name)
     time.sleep(1)
