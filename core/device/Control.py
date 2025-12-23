@@ -52,3 +52,13 @@ class Control:
 
     def scroll(self, x, y, clicks):
         self.control_instance.scroll(x, y, clicks)
+
+    def set_display_id(self, display_id):
+        """Set runtime display id on underlying control instance if supported.
+
+        This function intentionally does not change click/swipe signatures;
+        callers can call `Control.set_display_id()` when they need to target a
+        specific Android display. Only AdbControl currently uses this value.
+        """
+        if hasattr(self.control_instance, 'set_display_id'):
+            self.control_instance.set_display_id(display_id)
