@@ -36,10 +36,7 @@ set -o pipefail
 #     cd ../..
 # fi
 
-########## Setup PATH ##########
-export ANDROIDSDK="$(pwd)/.sdk/android-sdk/cmdline-tools/bin"
-export ANDROIDNDK="$(pwd)/.sdk/android-ndk/android-ndk-r25b"
-# Link cache directory to workspace to avoid re-downloading
+########## Cache directory ##########
 mkdir -p .pyside6_android_deploy
 ln -sfn "$(pwd)/.pyside6_android_deploy" ~/.pyside6_android_deploy
 
@@ -72,18 +69,6 @@ fi
 #     python tools/cross_compile_android/main.py --download-only --skip-update --auto-accept-license
 #     cd ..
 # fi
-
-# check pyside wheels
-cd .pyside6_android_deploy
-if [ ! -f pyside6-*.whl ]; then
-    echo "pyside wheels not found, downloading..."
-    wget https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.9.2-6.9.2-cp311-cp311-android_aarch64.whl
-fi
-if [ ! -f shiboken6-*.whl ]; then
-    echo "shiboken6 wheels not found, downloading..."
-    wget https://download.qt.io/official_releases/QtForPython/shiboken6/shiboken6-6.9.0-6.9.0-cp311-cp311-android_aarch64.whl
-fi
-cd ..
 
 ########## Setup RapidOCR ##########
 echo Downloading RapidOCR aar library...

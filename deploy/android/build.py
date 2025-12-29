@@ -117,8 +117,6 @@ def _configure():
     })
 
 def _build():
-    os.environ['ANDROIDSDK'] = proj_path(ANDROID_SDK_PATH)
-    os.environ['ANDROIDNDK'] = proj_path(ANDROID_NDK_PATH)
     os.system(f'buildozer android debug')
 
 
