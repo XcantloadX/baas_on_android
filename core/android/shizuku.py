@@ -1,5 +1,5 @@
 import base64
-import os
+import sys
 from typing import TYPE_CHECKING, Union, Any, NamedTuple
 
 from jnius import PythonJavaClass, autoclass
@@ -92,7 +92,7 @@ def _show_dialog(message: str, *, activity=None, on_positive=None, exit_app: boo
 
     def _do_exit():
         if exit_app:
-            os._exit(1)
+            sys.exit(1)
 
     if act is None:
         _do_exit()
@@ -100,14 +100,18 @@ def _show_dialog(message: str, *, activity=None, on_positive=None, exit_app: boo
 
     AlertDialogBuilder = autoclass('android.app.AlertDialog$Builder')
 
+    def _on_positive_clicked():
+        try:
+            if callable(on_positive):
+                on_positive()
+        finally:
+            _do_exit()
+
     def _show():
         builder = AlertDialogBuilder(act)
         builder.setMessage(str(message))
         builder.setCancelable(False)
-        builder.setPositiveButton("确定", _OnClickListener(lambda: (
-            on_positive() if callable(on_positive) else None,
-            _do_exit()
-        )))
+        builder.setPositiveButton("确定", _OnClickListener(_on_positive_clicked))
         builder.show()
 
     _run_on_ui_thread(act, _show)
@@ -183,23 +187,32 @@ def request_permission(activity=None, request_code: int = PERMISSION_CODE_DEFAUL
 
         listener = None
 
+        def _request():
+            try:
+                Shizuku.requestPermission(int(request_code))
+            except Exception as exc_inner:
+                _show_dialog(
+                    f"{exc_inner}\n请检查 Shizuku 服务是否正常运行。",
+                    activity=activity,
+                    exit_app=True
+                )
+
         def _on_result(requestCode, grantResult):
             nonlocal listener
-            if listener is not None:
-                remove_request_permission_result_listener(listener)
-                listener = None
-
             if int(grantResult) == PackageManager.PERMISSION_GRANTED:
+                if listener is not None:
+                    remove_request_permission_result_listener(listener)
+                    listener = None
                 return
 
             _show_dialog(
                 "请允许 Shizuku 权限申请。",
                 activity=activity,
-                on_positive=lambda: request_permission(activity=activity, request_code=request_code)
+                on_positive=_request
             )
 
         listener = add_request_permission_result_listener(_on_result)
-        Shizuku.requestPermission(int(request_code))
+        _request()
     except Exception as exc:
         _show_dialog(
             f"{exc}\n请检查 Shizuku 服务是否正常运行。",
