@@ -223,9 +223,12 @@ class ShizukuClient:
             return False
 
         # 检查 Shizuku 权限
-        if Shizuku.checkSelfPermission() != 0: # 0 is PERMISSION_GRANTED
-            self.logger.warning("ShizukuClient: Shizuku permission not granted. Requesting...")
-            Shizuku.requestPermission(0) # 0 is a request code
+        try:
+            if not check_permission():
+                self.logger.warning("ShizukuClient: Shizuku permission not granted. Waiting for grant.")
+                return False
+        except Exception as e:
+            self.logger.error(f"ShizukuClient: Failed to check permission: {e}")
             return False
 
         self.logger.info("ShizukuClient: Binding Shizuku user service...")
