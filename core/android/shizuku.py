@@ -1,8 +1,7 @@
 import base64
-import sys
 from typing import TYPE_CHECKING, Union, Any, NamedTuple
 
-from jnius import PythonJavaClass, autoclass
+from jnius import PythonJavaClass
 from jnius import java_method # type: ignore
 
 from .util import main_activity
@@ -36,85 +35,6 @@ _stream_callbacks = set()
 PERMISSION_CODE_DEFAULT = 1024
 _LISTENER_IFACE = 'rikka.shizuku.Shizuku$OnRequestPermissionResultListener'
 _LISTENER_IFACE_JNI = _LISTENER_IFACE.replace('.', '/')
-
-
-class _Runnable(PythonJavaClass):
-    __javainterfaces__ = ['java/lang/Runnable']
-    __javacontext__ = 'app'
-
-    def __init__(self, func):
-        super().__init__()
-        self._func = func
-
-    @java_method('()V')
-    def run(self):
-        try:
-            self._func()
-        except Exception:
-            # Avoid crashing the UI thread
-            pass
-
-
-class _OnClickListener(PythonJavaClass):
-    __javainterfaces__ = ['android/content/DialogInterface$OnClickListener']
-    __javacontext__ = 'app'
-
-    def __init__(self, func):
-        super().__init__()
-        self._func = func
-
-    @java_method('(Landroid/content/DialogInterface;I)V')
-    def onClick(self, dialog, which):
-        try:
-            if callable(self._func):
-                self._func()
-        finally:
-            try:
-                dialog.dismiss()
-            except Exception:
-                pass
-
-
-def _run_on_ui_thread(activity, func):
-    if not activity:
-        return
-    try:
-        activity.runOnUiThread(_Runnable(func))
-    except Exception:
-        func()
-
-
-def _show_dialog(message: str, *, activity=None, on_positive=None, exit_app: bool = False):
-    """
-    Show a simple AlertDialog with a single positive button.
-    """
-    act = activity or main_activity()
-
-    def _do_exit():
-        if exit_app:
-            sys.exit(1)
-
-    if act is None:
-        _do_exit()
-        return
-
-    AlertDialogBuilder = autoclass('android.app.AlertDialog$Builder')
-
-    def _on_positive_clicked():
-        try:
-            if callable(on_positive):
-                on_positive()
-        finally:
-            _do_exit()
-
-    def _show():
-        builder = AlertDialogBuilder(act)
-        builder.setMessage(str(message))
-        builder.setCancelable(False)
-        builder.setPositiveButton("确定", _OnClickListener(_on_positive_clicked))
-        builder.show()
-
-    _run_on_ui_thread(act, _show)
 
 
 def to_java_str_array(seq):
@@ -177,48 +97,12 @@ def request_permission(activity=None, request_code: int = PERMISSION_CODE_DEFAUL
         activity: The activity context.
         request_code (int): The request code for the permission request.
     """
-    activity = activity or main_activity()
     try:
-        if check_permission():
-            return
-
-        if is_pre_v11():
-            return
-
-        listener = None
-
-        def _request():
-            try:
-                Shizuku.requestPermission(int(request_code))
-            except Exception as exc_inner:
-                _show_dialog(
-                    f"{exc_inner}\n请检查 Shizuku 服务是否正常运行。",
-                    activity=activity,
-                    exit_app=True
-                )
-
-        def _on_result(requestCode, grantResult):
-            nonlocal listener
-            if int(grantResult) == PackageManager.PERMISSION_GRANTED:
-                if listener is not None:
-                    remove_request_permission_result_listener(listener)
-                    listener = None
-                return
-
-            _show_dialog(
-                "请允许 Shizuku 权限申请。",
-                activity=activity,
-                on_positive=_request
-            )
-
-        listener = add_request_permission_result_listener(_on_result)
-        _request()
-    except Exception as exc:
-        _show_dialog(
-            f"{exc}\n请检查 Shizuku 服务是否正常运行。",
-            activity=activity,
-            exit_app=True
-        )
+        from .classes import MainActivity
+        MainActivity.requestShizukuPermission()
+    except Exception:
+        # Defer all error handling to Java side; avoid crashing Python entry.
+        pass
 
 
 class _PermissionResultListener(PythonJavaClass):
